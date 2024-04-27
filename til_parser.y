@@ -34,7 +34,7 @@
 
 %token <i> tINTEGER
 %token <s> tIDENTIFIER tSTRING
-%token tWHILE tIF tPRINT tREAD tBEGIN tEND
+%token tLOOP tIF tPRINT tPRINTLN tREAD tBEGIN tEND
 
 %nonassoc tIFX
 %nonassoc tELSE
@@ -46,7 +46,7 @@
 %nonassoc tUNARY
 
 %type <node> stmt program
-%type <sequence> list
+%type <sequence> list exprs
 %type <expression> expr
 %type <lvalue> lval
 
@@ -63,9 +63,10 @@ list : stmt      { $$ = new cdk::sequence_node(LINE, $1); }
      ;
 
 stmt : expr ';'                         { $$ = new til::evaluation_node(LINE, $1); }
-     | tPRINT expr ';'                  { $$ = new til::print_node(LINE, $2); }
-     | tREAD lval ';'                   { $$ = new til::read_node(LINE, $2); }
-     | tWHILE '(' expr ')' stmt         { $$ = new til::while_node(LINE, $3, $5); }
+     | tPRINT exprs                     { $$ = new til::print_node(LINE, $2, false); }
+     | tPRINTLN exprs                   { $$ = new til::print_node(LINE, $2, true); }
+     | tREAD                            { $$ = new til::read_node(LINE); }
+     | tLOOP '(' expr stmt ')'          { $$ = new til::loop_node(LINE, $3, $4); }
      | tIF '(' expr ')' stmt %prec tIFX { $$ = new til::if_node(LINE, $3, $5); }
      | tIF '(' expr ')' stmt tELSE stmt { $$ = new til::if_else_node(LINE, $3, $5, $7); }
      | '{' list '}'                     { $$ = $2; }
@@ -90,6 +91,10 @@ expr : tINTEGER              { $$ = new cdk::integer_node(LINE, $1); }
      | lval                  { $$ = new cdk::rvalue_node(LINE, $1); }
      | lval '=' expr         { $$ = new cdk::assignment_node(LINE, $1, $3); }
      ;
+
+exprs   : expr                 { $$ = new cdk::sequence_node(LINE, $1);     }
+        | exprs ',' expr       { $$ = new cdk::sequence_node(LINE, $3, $1); }
+        ;
 
 lval : tIDENTIFIER             { $$ = new cdk::variable_node(LINE, $1); }
      ;

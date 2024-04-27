@@ -166,23 +166,13 @@ void til::type_checker::do_evaluation_node(til::evaluation_node *const node, int
 }
 
 void til::type_checker::do_print_node(til::print_node *const node, int lvl) {
-  node->argument()->accept(this, lvl + 2);
+  node->arguments()->accept(this, lvl + 2);
 }
 
 //---------------------------------------------------------------------------
 
 void til::type_checker::do_read_node(til::read_node *const node, int lvl) {
-  try {
-    node->argument()->accept(this, lvl);
-  } catch (const std::string &id) {
-    throw "undeclared variable '" + id + "'";
-  }
-}
-
-//---------------------------------------------------------------------------
-
-void til::type_checker::do_while_node(til::while_node *const node, int lvl) {
-  node->condition()->accept(this, lvl + 4);
+  throw "not implemented";
 }
 
 //---------------------------------------------------------------------------
@@ -193,4 +183,69 @@ void til::type_checker::do_if_node(til::if_node *const node, int lvl) {
 
 void til::type_checker::do_if_else_node(til::if_else_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+}
+
+//---------------------------------------------------------------------------
+
+void til::type_checker::do_alloc_node(til::alloc_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  throw "not implemented";
+}
+
+void til::type_checker::do_address_of_node(til::address_of_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_index_node(til::index_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_nullptr_node(til::nullptr_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_sizeof_node(til::sizeof_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+//---------------------------------------------------------------------------
+
+void til::type_checker::do_block_node(til::block_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_declaration_node(til::declaration_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_function_node(til::function_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_function_call_node(til::function_call_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+//---------------------------------------------------------------------------
+
+void til::type_checker::do_loop_node(til::loop_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_next_node(til::next_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+void til::type_checker::do_stop_node(til::stop_node *const node, int lvl) {
+  throw "not implemented";
+}
+
+//---------------------------------------------------------------------------
+
+void til::type_checker::do_set_node(til::set_node *const node, int lvl) {
+  throw "not implemented";
 }

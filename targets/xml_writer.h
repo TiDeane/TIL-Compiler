@@ -35,6 +35,12 @@ namespace til {
     void closeTag(const cdk::basic_node *node, int lvl) {
       closeTag(node->label(), lvl);
     }
+    void emptyTag(const std::string &tag, int lvl) {
+      os() << std::string(lvl, ' ') + "<" + tag + "/>" << std::endl;
+    }
+    void emptyTag(const cdk::basic_node *node, int lvl) {
+      emptyTag(node->label(), lvl);
+    }
 
   protected:
     void do_binary_operation(cdk::binary_operation_node *const node, int lvl);
