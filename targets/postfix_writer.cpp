@@ -169,36 +169,6 @@ void til::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 
 //---------------------------------------------------------------------------
 
-void til::postfix_writer::do_program_node(til::program_node * const node, int lvl) {
-  // Note that Simple doesn't have functions. Thus, it doesn't need
-  // a function node. However, it must start in the main function.
-  // The ProgramNode (representing the whole program) doubles as a
-  // main function node.
-
-  // generate the main function (RTS mandates that its name be "_main")
-  _pf.TEXT();
-  _pf.ALIGN();
-  _pf.GLOBAL("_main", _pf.FUNC());
-  _pf.LABEL("_main");
-  _pf.ENTER(0);  // Simple doesn't implement local variables
-
-  node->statements()->accept(this, lvl);
-
-  // end the main function
-  _pf.INT(0);
-  _pf.STFVAL32();
-  _pf.LEAVE();
-  _pf.RET();
-
-  // these are just a few library function imports
-  _pf.EXTERN("readi");
-  _pf.EXTERN("printi");
-  _pf.EXTERN("prints");
-  _pf.EXTERN("println");
-}
-
-//---------------------------------------------------------------------------
-
 void til::postfix_writer::do_evaluation_node(til::evaluation_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->argument()->accept(this, lvl); // determine the value
@@ -355,11 +325,3 @@ void til::postfix_writer::do_stop_node(til::stop_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   throw "not implemented";
 }
-
-//---------------------------------------------------------------------------
-
-void til::postfix_writer::do_set_node(til::set_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
-}
-

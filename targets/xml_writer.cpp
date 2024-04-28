@@ -131,14 +131,6 @@ void til::xml_writer::do_assignment_node(cdk::assignment_node * const node, int 
 
 //---------------------------------------------------------------------------
 
-void til::xml_writer::do_program_node(til::program_node * const node, int lvl) {
-  openTag(node, lvl);
-  node->statements()->accept(this, lvl + 4);
-  closeTag(node, lvl);
-}
-
-//---------------------------------------------------------------------------
-
 void til::xml_writer::do_evaluation_node(til::evaluation_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
@@ -256,13 +248,6 @@ void til::xml_writer::do_next_node(til::next_node * const node, int lvl) {
 }
 
 void til::xml_writer::do_stop_node(til::stop_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
-}
-
-//---------------------------------------------------------------------------
-
-void til::xml_writer::do_set_node(til::set_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   throw "not implemented";
 }

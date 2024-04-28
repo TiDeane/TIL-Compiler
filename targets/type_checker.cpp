@@ -157,10 +157,6 @@ void til::type_checker::do_assignment_node(cdk::assignment_node *const node, int
 
 //---------------------------------------------------------------------------
 
-void til::type_checker::do_program_node(til::program_node *const node, int lvl) {
-  // EMPTY
-}
-
 void til::type_checker::do_evaluation_node(til::evaluation_node *const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
 }
@@ -241,11 +237,5 @@ void til::type_checker::do_next_node(til::next_node *const node, int lvl) {
 }
 
 void til::type_checker::do_stop_node(til::stop_node *const node, int lvl) {
-  throw "not implemented";
-}
-
-//---------------------------------------------------------------------------
-
-void til::type_checker::do_set_node(til::set_node *const node, int lvl) {
   throw "not implemented";
 }

@@ -21,19 +21,17 @@ namespace til {
      */
     class function_node: public cdk::expression_node {
         cdk::sequence_node *_args;
-        cdk::sequence_node *_declarations, *_instructions;
+        til::block_node *_block;
         bool _is_main;
 
     public:
         inline function_node(int lineno,
             cdk::sequence_node *args,
             std::shared_ptr<cdk::basic_type> return_type,
-            cdk::sequence_node *declarations,
-            cdk::sequence_node *instructions,
+            til::block_node *block,
             bool is_main = false) : 
 
-            cdk::expression_node(lineno), _args(args), _declarations(declarations), 
-            _instructions(instructions), _is_main(is_main) {
+            cdk::expression_node(lineno), _args(args), _block(block), _is_main(is_main) {
                 std::vector<std::shared_ptr<cdk::basic_type>> arg_types;
                 for (size_t i = 0; i < args->size(); i++) {
                     arg_types.push_back(dynamic_cast<cdk::typed_node*>(args->node(i))->type());
@@ -44,9 +42,8 @@ namespace til {
         }
         
         /** Constructor for the main function. */
-        inline function_node(int lineno, cdk::sequence_node *declarations,
-            cdk::sequence_node *instructions) :
-            cdk::expression_node(lineno), _args(new cdk::sequence_node(lineno)), _declarations(declarations), _instructions(instructions), _is_main(true) {
+        inline function_node(int lineno, til::block_node *block) :
+            cdk::expression_node(lineno), _args(new cdk::sequence_node(lineno)), _block(block), _is_main(true) {
             this->type(cdk::functional_type::create(cdk::primitive_type::create(4, cdk::TYPE_INT)));
         }        
 
@@ -54,11 +51,8 @@ namespace til {
         inline cdk::sequence_node *args() {
             return _args;
         }        
-        inline cdk::sequence_node *declarations() {
-            return _declarations;
-        }
-        inline cdk::sequence_node *instructions() {
-            return _instructions;
+        inline til::block_node *block() {
+            return _block;
         }
         inline bool is_main() {
             return _is_main;
