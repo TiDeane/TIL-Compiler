@@ -313,7 +313,14 @@ void til::postfix_writer::do_return_node(til::return_node * const node, int lvl)
 
 void til::postfix_writer::do_loop_node(til::loop_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  int lbl1, lbl2;
+  _pf.LABEL(mklbl(lbl1 = ++_lbl));
+  node->condition()->accept(this, lvl);
+  _pf.JZ(mklbl(lbl2 = ++_lbl));
+  node->block()->accept(this, lvl + 2);
+  _pf.JMP(mklbl(lbl1));
+  _pf.LABEL(mklbl(lbl2));
+
 }
 
 void til::postfix_writer::do_next_node(til::next_node * const node, int lvl) {

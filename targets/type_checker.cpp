@@ -229,7 +229,7 @@ void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void til::type_checker::do_loop_node(til::loop_node *const node, int lvl) {
-  throw "not implemented";
+  node->condition()->accept(this, lvl + 4);
 }
 
 void til::type_checker::do_next_node(til::next_node *const node, int lvl) {
