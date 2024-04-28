@@ -11,8 +11,7 @@
 #include <cdk/types/functional_type.h>
 #include <cdk/types/primitive_type.h>
 #include <cdk/types/typename_type.h>
-//#include "block_node.h"
-//* TODO: Should we use the block node instead of declarations, instructions ?
+#include "block_node.h"
 
 namespace til {
 
