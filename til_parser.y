@@ -134,7 +134,7 @@ instrs : instr        { $$ = new cdk::sequence_node(LINE, $1); }
        | instrs instr { $$ = new cdk::sequence_node(LINE, $2, $1); }
        ;
 
-instr : '(' expr                 ')'  { $$ = new til::evaluation_node(LINE, $2); }
+instr : expr                          { $$ = new til::evaluation_node(LINE, $1); }
       | '(' tPRINT exprs         ')'  { $$ = new til::print_node(LINE, $3, false); }
       | '(' tPRINTLN exprs       ')'  { $$ = new til::print_node(LINE, $3, true); }
       | '(' tSTOP ')'                 { $$ = new til::stop_node(LINE, 1); }
