@@ -16,6 +16,11 @@ namespace til {
     address_of_node(int lineno, cdk::lvalue_node *lvalue) :
         cdk::expression_node(lineno), _lvalue(lvalue) {
         }
+  
+  public:
+        inline cdk::lvalue_node *lvalue() {
+            return _lvalue;
+        }
 
     void accept(basic_ast_visitor *sp, int level) {
         sp->do_address_of_node(this, level);

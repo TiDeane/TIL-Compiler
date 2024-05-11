@@ -13,8 +13,8 @@ namespace til {
     cdk::expression_node *_retValue;
 
   public:
-    return_node(int lineno, cdk::expression_node *revValue) :
-        cdk::basic_node(lineno), _retValue(revValue) {
+    return_node(int lineno, cdk::expression_node *retValue) :
+        cdk::basic_node(lineno), _retValue(retValue) {
     }
 
     cdk::expression_node *retValue() { return _retValue; }
