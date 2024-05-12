@@ -58,6 +58,7 @@
 %type <block> decls_instrs block
 %type <expression> expr func_definition
 %type <lvalue> lval
+%type <s> string
 
 %{
 //-- The rules below will be included in yyparse, the main parsing function.
@@ -65,8 +66,9 @@
 %%
 
 file : fdecls program { compiler->ast(new cdk::sequence_node(LINE, $2, $1)); }
+     | fdecls         { compiler->ast($1); }
      |        program { compiler->ast(new cdk::sequence_node(LINE, $1)); }
-     //| fdecls         {}
+     | /* empty */    { compiler->ast(new cdk::sequence_node(LINE)); }
      ;
 
 fdecls : fdecls fdecl { $$ = new cdk::sequence_node(LINE, $2, $1); }
@@ -158,10 +160,11 @@ exprs   : expr               { $$ = new cdk::sequence_node(LINE, $1);     }
 
 expr : tINTEGER               { $$ = new cdk::integer_node(LINE, $1); }
      | tDOUBLE                { $$ = new cdk::double_node(LINE, $1); }
-     | tSTRING                { $$ = new cdk::string_node(LINE, $1); }
+     | string                 { $$ = new cdk::string_node(LINE, *$1); delete $1; }
      | tNULL                  { $$ = new til::nullptr_node(LINE); }
      | '-' expr %prec tUNARY  { $$ = new cdk::unary_minus_node(LINE, $2); }
      | '+' expr %prec tUNARY  { $$ = new cdk::unary_plus_node(LINE, $2); }
+     | '~' expr               { $$ = new cdk::not_node(LINE, $2); }
      | '+' expr expr          { $$ = new cdk::add_node(LINE, $2, $3); }
      | '-' expr expr          { $$ = new cdk::sub_node(LINE, $2, $3); }
      | '*' expr expr          { $$ = new cdk::mul_node(LINE, $2, $3); }
@@ -180,7 +183,7 @@ expr : tINTEGER               { $$ = new cdk::integer_node(LINE, $1); }
      | '(' tOBJECTS expr ')'  { $$ = new til::alloc_node(LINE, $3); }          // [double] p = [5] -> double! p (objects 5) // entre parenteses?
      | '(' tSIZEOF expr  ')'  { $$ = new til::sizeof_node(LINE, $3); }         // nao sei se precisa dos parenteses
      | lval                   { $$ = new cdk::rvalue_node(LINE, $1); }
-     | '(' tSET lval expr ')' { $$ = new cdk::assignment_node(LINE, $3, $4); } // nao sei se precisa de parenteses
+     | '(' tSET lval expr ')' { $$ = new cdk::assignment_node(LINE, $3, $4); } 
      | '(' type lval expr ')' { $$ = new cdk::assignment_node(LINE, $3, $4); } // nao sei se precisa dos parenteses
      | '(' '?' lval       ')' { $$ = new til::address_of_node(LINE, $3); }     // nao sei se precisa dos parenteses
      | '(' tREAD          ')' { $$ = new til::read_node(LINE); }               // nao sei se precisa dos parenteses
@@ -193,6 +196,10 @@ expr : tINTEGER               { $$ = new cdk::integer_node(LINE, $1); }
 lval : tIDENTIFIER                  { $$ = new cdk::variable_node(LINE, $1); }
      | '(' tINDEX expr expr ')'     { $$ = new til::index_node(LINE, $3, $4); }
      ;
+
+string : string tSTRING    { $$ = $1; $$->append(*$2); delete $2; }
+       | tSTRING           { $$ = $1; }
+       ;
 
 func_definition : '(' tFUNCTION '(' func_return_type ')' decls_instrs ')'       { $$ = new til::function_node(LINE, new cdk::sequence_node(LINE), $4, $6); }
                 | '(' tFUNCTION '(' func_return_type decls ')' decls_instrs ')' { $$ = new til::function_node(LINE, $5, $4, $7); }
