@@ -58,7 +58,6 @@
 %type <block> decls_instrs block
 %type <expression> expr func_definition
 %type <lvalue> lval
-%type <s> string
 
 %{
 //-- The rules below will be included in yyparse, the main parsing function.
@@ -160,7 +159,7 @@ exprs   : expr               { $$ = new cdk::sequence_node(LINE, $1);     }
 
 expr : tINTEGER                      { $$ = new cdk::integer_node(LINE, $1); }
      | tDOUBLE                       { $$ = new cdk::double_node(LINE, $1); }
-     | string                        { $$ = new cdk::string_node(LINE, *$1); delete $1; }
+     | tSTRING                       { $$ = new cdk::string_node(LINE, $1); }
      | tNULL                         { $$ = new til::nullptr_node(LINE); }
      | '(' '-' expr %prec tUNARY ')' { $$ = new cdk::unary_minus_node(LINE, $3); }
      | '(' '+' expr %prec tUNARY ')' { $$ = new cdk::unary_plus_node(LINE, $3); }
@@ -196,10 +195,6 @@ expr : tINTEGER                      { $$ = new cdk::integer_node(LINE, $1); }
 lval : tIDENTIFIER                  { $$ = new cdk::variable_node(LINE, $1); }
      | '(' tINDEX expr expr ')'     { $$ = new til::index_node(LINE, $3, $4); }
      ;
-
-string : string tSTRING    { $$ = $1; $$->append(*$2); delete $2; }
-       | tSTRING           { $$ = $1; }
-       ;
 
 func_definition : '(' tFUNCTION '(' func_return_type ')' decls_instrs ')'       { $$ = new til::function_node(LINE, new cdk::sequence_node(LINE), $4, $6); }
                 | '(' tFUNCTION '(' func_return_type decls ')' decls_instrs ')' { $$ = new til::function_node(LINE, $5, $4, $7); }
