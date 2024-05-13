@@ -151,46 +151,46 @@ instr : expr                          { $$ = new til::evaluation_node(LINE, $1);
       | block                         { $$ = $1; }
       ;
 
-block : '(' decls_instrs ')' { $$ = $2; }
+block : '(' tBLOCK decls_instrs ')' { $$ = $3; }
       ;
 
 exprs   : expr               { $$ = new cdk::sequence_node(LINE, $1);     }
         | exprs expr         { $$ = new cdk::sequence_node(LINE, $2, $1); }
         ;
 
-expr : tINTEGER               { $$ = new cdk::integer_node(LINE, $1); }
-     | tDOUBLE                { $$ = new cdk::double_node(LINE, $1); }
-     | string                 { $$ = new cdk::string_node(LINE, *$1); delete $1; }
-     | tNULL                  { $$ = new til::nullptr_node(LINE); }
-     | '-' expr %prec tUNARY  { $$ = new cdk::unary_minus_node(LINE, $2); }
-     | '+' expr %prec tUNARY  { $$ = new cdk::unary_plus_node(LINE, $2); }
-     | '~' expr               { $$ = new cdk::not_node(LINE, $2); }
-     | '+' expr expr          { $$ = new cdk::add_node(LINE, $2, $3); }
-     | '-' expr expr          { $$ = new cdk::sub_node(LINE, $2, $3); }
-     | '*' expr expr          { $$ = new cdk::mul_node(LINE, $2, $3); }
-     | '/' expr expr          { $$ = new cdk::div_node(LINE, $2, $3); }
-     | '%' expr expr          { $$ = new cdk::mod_node(LINE, $2, $3); }
-     | '<' expr expr          { $$ = new cdk::lt_node(LINE, $2, $3); }
-     | '>' expr expr          { $$ = new cdk::gt_node(LINE, $2, $3); }
-     | tGE expr expr          { $$ = new cdk::ge_node(LINE, $2, $3); }
-     | tLE expr expr          { $$ = new cdk::le_node(LINE, $2, $3); }
-     | tNE expr expr          { $$ = new cdk::ne_node(LINE, $2, $3); }
-     | tEQ expr expr          { $$ = new cdk::eq_node(LINE, $2, $3); }
-     | tAND expr expr         { $$ = new cdk::and_node(LINE, $2,$3); }
-     | tOR expr expr          { $$ = new cdk::or_node(LINE, $2, $3); } 
-     | '(' expr ')'           { $$ = $2; }
-     | expr '!'               { $$ = new til::alloc_node(LINE, $1); }
-     | '(' tOBJECTS expr ')'  { $$ = new til::alloc_node(LINE, $3); }          // [double] p = [5] -> double! p (objects 5) // entre parenteses?
-     | '(' tSIZEOF expr  ')'  { $$ = new til::sizeof_node(LINE, $3); }         // nao sei se precisa dos parenteses
-     | lval                   { $$ = new cdk::rvalue_node(LINE, $1); }
-     | '(' tSET lval expr ')' { $$ = new cdk::assignment_node(LINE, $3, $4); } 
-     | '(' type lval expr ')' { $$ = new cdk::assignment_node(LINE, $3, $4); } // nao sei se precisa dos parenteses
-     | '(' '?' lval       ')' { $$ = new til::address_of_node(LINE, $3); }     // nao sei se precisa dos parenteses
-     | '(' tREAD          ')' { $$ = new til::read_node(LINE); }               // nao sei se precisa dos parenteses
-     | func_definition        { $$ = $1; }
-     | expr '(' exprs     ')' { $$ = new til::function_call_node(LINE, $1, $3); }
-     | '@'  '(' exprs     ')' { $$ = new til::function_call_node(LINE, nullptr, $3); }
-     | '@'  '('           ')' { $$ = new til::function_call_node(LINE, nullptr, new cdk::sequence_node(LINE)); }
+expr : tINTEGER                      { $$ = new cdk::integer_node(LINE, $1); }
+     | tDOUBLE                       { $$ = new cdk::double_node(LINE, $1); }
+     | string                        { $$ = new cdk::string_node(LINE, *$1); delete $1; }
+     | tNULL                         { $$ = new til::nullptr_node(LINE); }
+     | '(' '-' expr %prec tUNARY ')' { $$ = new cdk::unary_minus_node(LINE, $3); }
+     | '(' '+' expr %prec tUNARY ')' { $$ = new cdk::unary_plus_node(LINE, $3); }
+     | '(' '~' expr ')'              { $$ = new cdk::not_node(LINE, $3); }
+     | '(' '+' expr expr ')'         { $$ = new cdk::add_node(LINE, $3, $4); }
+     | '(' '-' expr expr ')'         { $$ = new cdk::sub_node(LINE, $3, $4); }
+     | '(' '*' expr expr ')'         { $$ = new cdk::mul_node(LINE, $3, $4); }
+     | '(' '/' expr expr ')'         { $$ = new cdk::div_node(LINE, $3, $4); }
+     | '(' '%' expr expr ')'         { $$ = new cdk::mod_node(LINE, $3, $4); }
+     | '(' '<' expr expr ')'         { $$ = new cdk::lt_node(LINE, $3, $4); }
+     | '(' '>' expr expr ')'         { $$ = new cdk::gt_node(LINE, $3, $4); }
+     | '(' tGE expr expr ')'         { $$ = new cdk::ge_node(LINE, $3, $4); }
+     | '(' tLE expr expr ')'         { $$ = new cdk::le_node(LINE, $3, $4); }
+     | '(' tNE expr expr ')'         { $$ = new cdk::ne_node(LINE, $3, $4); }
+     | '(' tEQ expr expr ')'         { $$ = new cdk::eq_node(LINE, $3, $4); }
+     | '(' tAND expr expr ')'        { $$ = new cdk::and_node(LINE, $3,$4); }
+     | '(' tOR expr expr ')'         { $$ = new cdk::or_node(LINE, $3, $4); } 
+     | '(' expr ')'                  { $$ = $2; }
+     | expr '!'                      { $$ = new til::alloc_node(LINE, $1); }
+     | '(' tOBJECTS expr ')'         { $$ = new til::alloc_node(LINE, $3); }          // [double] p = [5] -> double! p (objects 5) // entre parenteses?
+     | '(' tSIZEOF expr  ')'         { $$ = new til::sizeof_node(LINE, $3); }         // nao sei se precisa dos parenteses
+     | lval                          { $$ = new cdk::rvalue_node(LINE, $1); }
+     | '(' tSET lval expr ')'        { $$ = new cdk::assignment_node(LINE, $3, $4); } 
+     | '(' type lval expr ')'        { $$ = new cdk::assignment_node(LINE, $3, $4); } // nao sei se precisa dos parenteses
+     | '(' '?' lval       ')'        { $$ = new til::address_of_node(LINE, $3); }     // nao sei se precisa dos parenteses
+     | '(' tREAD          ')'        { $$ = new til::read_node(LINE); }               // nao sei se precisa dos parenteses
+     | func_definition               { $$ = $1; }
+     | expr '(' exprs     ')'        { $$ = new til::function_call_node(LINE, $1, $3); }
+     | '@'  '(' exprs     ')'        { $$ = new til::function_call_node(LINE, nullptr, $3); }
+     | '@'  '('           ')'        { $$ = new til::function_call_node(LINE, nullptr, new cdk::sequence_node(LINE)); }
      ;
 
 lval : tIDENTIFIER                  { $$ = new cdk::variable_node(LINE, $1); }
