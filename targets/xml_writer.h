@@ -64,10 +64,10 @@ namespace til {
   protected:
     void do_binary_operation(cdk::binary_operation_node *const node, int lvl);
     void do_unary_operation(cdk::unary_operation_node *const node, int lvl);
-    inline const char *bool_to_str(bool boolean) {
+    inline std::string bool_to_str(bool boolean) {
       return boolean ? "true" : "false";
     }
-    inline const char *qualifier_to_str(int qualifier) {
+    inline std::string qualifier_to_str(int qualifier) {
       switch (qualifier) {
         case tEXTERNAL: return "external";
         case tFORWARD: return "forward";
