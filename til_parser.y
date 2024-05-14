@@ -44,12 +44,8 @@
 %token tSIZEOF tNULL tSET tINDEX tOBJECTS
 %token tFUNCTION tBLOCK
 %token tPUBLIC tEXTERNAL tFORWARD tPRIVATE tVAR
+%token tGE tLE tNE tEQ tAND tOR
 
-%left '(' ')'
-%left tGE tLE tEQ tNE '>' '<' tAND tOR
-%left '+' '-'
-%left '*' '/' '%'
-%nonassoc tUNARY 
 
 %type <node> fdecl program decl instr
 %type <sequence> fdecls decls instrs exprs 
@@ -161,8 +157,8 @@ expr : tINTEGER                      { $$ = new cdk::integer_node(LINE, $1); }
      | tDOUBLE                       { $$ = new cdk::double_node(LINE, $1); }
      | tSTRING                       { $$ = new cdk::string_node(LINE, $1); }
      | tNULL                         { $$ = new til::nullptr_node(LINE); }
-     | '(' '-' expr %prec tUNARY ')' { $$ = new cdk::unary_minus_node(LINE, $3); }
-     | '(' '+' expr %prec tUNARY ')' { $$ = new cdk::unary_plus_node(LINE, $3); }
+     | '(' '-' expr ')'              { $$ = new cdk::unary_minus_node(LINE, $3); }
+     | '(' '+' expr ')'              { $$ = new cdk::unary_plus_node(LINE, $3); }
      | '(' '~' expr ')'              { $$ = new cdk::not_node(LINE, $3); }
      | '(' '+' expr expr ')'         { $$ = new cdk::add_node(LINE, $3, $4); }
      | '(' '-' expr expr ')'         { $$ = new cdk::sub_node(LINE, $3, $4); }
