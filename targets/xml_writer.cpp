@@ -15,7 +15,7 @@ void til::xml_writer::do_data_node(cdk::data_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void til::xml_writer::do_sequence_node(cdk::sequence_node * const node, int lvl) {
-  openTagWithAttributes(node, lvl, std::make_pair("sequence_node size", node->size()));
+  openTagWithAttributes(node, lvl, std::make_pair("size", node->size()));
   for (size_t i = 0; i < node->size(); i++)
     node->node(i)->accept(this, lvl + 2);
   closeTag(node, lvl);
