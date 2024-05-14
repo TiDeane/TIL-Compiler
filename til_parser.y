@@ -178,13 +178,12 @@ expr : tINTEGER                      { $$ = new cdk::integer_node(LINE, $1); }
      | '(' tAND expr expr ')'        { $$ = new cdk::and_node(LINE, $3,$4); }
      | '(' tOR expr expr ')'         { $$ = new cdk::or_node(LINE, $3, $4); } 
      | expr '!'                      { $$ = new til::alloc_node(LINE, $1); }
-     | '(' tOBJECTS expr ')'         { $$ = new til::alloc_node(LINE, $3); }          // [double] p = [5] -> double! p (objects 5) // entre parenteses?
-     | '(' tSIZEOF expr  ')'         { $$ = new til::sizeof_node(LINE, $3); }         // nao sei se precisa dos parenteses
+     | '(' tOBJECTS expr ')'         { $$ = new til::alloc_node(LINE, $3); }
+     | '(' tSIZEOF expr  ')'         { $$ = new til::sizeof_node(LINE, $3); }
      | lval                          { $$ = new cdk::rvalue_node(LINE, $1); }
      | '(' tSET lval expr ')'        { $$ = new cdk::assignment_node(LINE, $3, $4); } 
-     | '(' type lval expr ')'        { $$ = new cdk::assignment_node(LINE, $3, $4); } // nao sei se precisa dos parenteses
-     | '(' '?' lval       ')'        { $$ = new til::address_of_node(LINE, $3); }     // nao sei se precisa dos parenteses
-     | '(' tREAD          ')'        { $$ = new til::read_node(LINE); }               // nao sei se precisa dos parenteses
+     | '(' '?' lval       ')'        { $$ = new til::address_of_node(LINE, $3); }
+     | '(' tREAD          ')'        { $$ = new til::read_node(LINE); }
      | func_definition               { $$ = $1; }
      | '(' expr exprs     ')'        { $$ = new til::function_call_node(LINE, $2, $3); }
      | '(' expr ')'                  { $$ = new til::function_call_node(LINE, $2, new cdk::sequence_node(LINE)); }
