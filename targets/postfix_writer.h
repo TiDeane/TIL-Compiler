@@ -68,6 +68,13 @@ namespace til {
 
   };
 
+#define THROW_ERROR_FOR_NODE(subject, msg) { \
+  std::cerr << subject->lineno() << ": " << msg << std::endl; \
+  return; \
+}
+#define THROW_ERROR(msg) THROW_ERROR_FOR_NODE(node, msg)
+
+
 } // til
 
 #endif

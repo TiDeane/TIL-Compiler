@@ -535,7 +535,7 @@ template<size_t P, typename T>
 void til::postfix_writer::executeControlLoopInstruction(T * const node) {
   ASSERT_SAFE_EXPRESSIONS;
 
-  auto lvl = static_cast<size_t>(node->level());
+  auto lvl = static_cast<size_t>(node->nIterations());
 
   if (lvl == 0) {
     THROW_ERROR("invalid loop control instruction level");
