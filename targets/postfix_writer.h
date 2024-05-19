@@ -4,6 +4,9 @@
 #include "targets/basic_ast_visitor.h"
 
 #include <sstream>
+#include <optional>
+#include <stack>
+#include <set>
 #include <cdk/emitters/basic_postfix_emitter.h>
 
 namespace til {
@@ -16,6 +19,14 @@ namespace til {
     cdk::basic_postfix_emitter &_pf;
     int _lbl;
 
+    bool _forceOutsideFunction = false;
+    std::stack<std::string> _functionLabels; // labels of current visiting function
+    std::set<std::string> _externalFunctionsToDeclare;
+    std::optional<std::string> _externalFunctionName; // name of external function to be called, if any
+    // labels of current visiting function's loops (condition, end)
+    std::vector<std::pair<std::string, std::string>> *_currentFunctionLoopLabels;
+    bool _visitedFinalInstruction = false;
+
   public:
     postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<til::symbol> &symtab,
                    cdk::basic_postfix_emitter &pf) :
@@ -26,6 +37,12 @@ namespace til {
     ~postfix_writer() {
       os().flush();
     }
+  
+  protected:
+    void acceptCovariantNode(std::shared_ptr<cdk::basic_type> const node_type, cdk::expression_node * const node, int lvl);
+    void prepareIDBinaryExpression(cdk::binary_operation_node * const node, int lvl);
+    void prepareIDBinaryPredicateExpression(cdk::binary_operation_node * const node, int lvl);
+    template<size_t P, typename T> void executeControlLoopInstruction(T * const node);
 
   private:
     /** Method used to generate sequential labels. */
@@ -36,6 +53,10 @@ namespace til {
       else
         oss << "_L" << lbl;
       return oss.str();
+    }
+
+    inline bool inFunction() {
+      return !_forceOutsideFunction && !_functionLabels.empty();
     }
 
   public:

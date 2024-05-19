@@ -12,6 +12,7 @@ namespace til {
     std::string _name;
     int _qualifier;
     bool _is_main = false;
+    int _offset = 0;
 
   public:
     symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, int qualifier) :
@@ -39,6 +40,15 @@ namespace til {
     }
     bool is_main(bool b) {
       return _is_main == b;
+    }
+    int offset() const {
+      return _offset;
+    }
+    int offset(int offset) {
+      return _offset = offset;
+    }
+    bool global() const {
+      return _offset == 0;
     }
   };
 
