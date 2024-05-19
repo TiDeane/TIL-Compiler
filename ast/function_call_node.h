@@ -20,7 +20,7 @@ namespace til {
 
     cdk::expression_node *func() { return _func; }
 
-    cdk::basic_node *args() { return _args; }
+    cdk::sequence_node *args() { return _args; }
 
     void accept(basic_ast_visitor *sp, int level) {
         sp->do_function_call_node(this, level);
