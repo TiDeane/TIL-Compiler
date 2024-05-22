@@ -506,7 +506,22 @@ void til::postfix_writer::do_sizeof_node(til::sizeof_node * const node, int lvl)
 
 void til::postfix_writer::do_block_node(til::block_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  _symtab.push();
+  node->declarations()->accept(this, lvl + 2);
+
+  _visitedFinalInstruction = false;
+  for (size_t i = 0; i < node->instructions()->size(); i++) {
+    auto child = node->instructions()->node(i);
+
+    if (_visitedFinalInstruction) {
+      THROW_ERROR_FOR_NODE(child, "unreachable code");
+    }
+
+    child->accept(this, lvl + 2);
+  }
+  _visitedFinalInstruction = false;
+
+  _symtab.pop();
 }
 
 void til::postfix_writer::do_declaration_node(til::declaration_node * const node, int lvl) {
@@ -526,7 +541,22 @@ void til::postfix_writer::do_function_call_node(til::function_call_node * const 
 
 void til::postfix_writer::do_return_node(til::return_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  
+  auto symbol = _symtab.find("@", 1);
+  auto rettype = cdk::functional_type::cast(symbol->type())->output(0);
+
+  if (rettype->name() != cdk::TYPE_VOID) {
+    acceptCovariantNode(rettype, node->retValue(), lvl + 2);
+
+    if (rettype->name() == cdk::TYPE_DOUBLE) {
+      _pf.STFVAL64();
+    } else {
+      _pf.STFVAL32();
+    }
+  }
+  _pf.JMP(_currentFunctionRetLabel);
+
+  _visitedFinalInstruction = true;
 }
 
 //---------------------------------------------------------------------------
@@ -576,5 +606,4 @@ void til::postfix_writer::do_next_node(til::next_node * const node, int lvl) {
 
 void til::postfix_writer::do_stop_node(til::stop_node * const node, int lvl) {
   executeControlLoopInstruction<1>(node);
-
 }

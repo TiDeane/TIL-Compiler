@@ -21,10 +21,10 @@ namespace til {
 
     bool _forceOutsideFunction = false;
     std::stack<std::string> _functionLabels; // labels of current visiting function
+    std::string _currentFunctionRetLabel;
     std::set<std::string> _externalFunctionsToDeclare;
     std::optional<std::string> _externalFunctionName; // name of external function to be called, if any
-    // labels of current visiting function's loops (condition, end)
-    std::vector<std::pair<std::string, std::string>> *_currentFunctionLoopLabels;
+    std::vector<std::pair<std::string, std::string>> *_currentFunctionLoopLabels; // labels of current visiting function's loops (condition, end)
     bool _visitedFinalInstruction = false;
 
   public:
