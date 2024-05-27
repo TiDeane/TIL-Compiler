@@ -20,8 +20,10 @@ namespace til {
     int _lbl;
 
     bool _forceOutsideFunction = false;
+    bool _inFunctionArgs = false;
     std::stack<std::string> _functionLabels; // labels of current visiting function
     std::string _currentFunctionRetLabel;
+    int _offset;
     std::set<std::string> _externalFunctionsToDeclare;
     std::optional<std::string> _externalFunctionName; // name of external function to be called, if any
     std::vector<std::pair<std::string, std::string>> *_currentFunctionLoopLabels; // labels of current visiting function's loops (condition, end)
@@ -57,6 +59,15 @@ namespace til {
 
     inline bool inFunction() {
       return !_forceOutsideFunction && !_functionLabels.empty();
+    }
+
+    template<class T>
+    inline bool isInstanceOf(cdk::basic_node * const node) {
+      return dynamic_cast<T*>(node) != nullptr;
+    }
+    template<class T, class... Rest, typename std::enable_if<sizeof...(Rest) != 0, int>::type = 0>
+    inline bool isInstanceOf(cdk::basic_node * const node) {
+      return dynamic_cast<T*>(node) != nullptr || isInstanceOf<Rest...>(node);
     }
 
   public:

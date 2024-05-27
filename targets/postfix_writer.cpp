@@ -2,6 +2,7 @@
 #include <sstream>
 #include "targets/type_checker.h"
 #include "targets/postfix_writer.h"
+#include "targets/frame_size_calculator.h"
 #include ".auto/all_nodes.h"  // all_nodes.h is automatically generated
 
 #include "til_parser.tab.h"
@@ -526,17 +527,201 @@ void til::postfix_writer::do_block_node(til::block_node * const node, int lvl) {
 
 void til::postfix_writer::do_declaration_node(til::declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  
+  auto symbol = new_symbol();
+  reset_new_symbol();
+
+  int offset = 0;
+  int typesize = node->type()->size();
+  
+  if (_inFunctionArgs) {
+    offset = _offset;
+    _offset += typesize;
+  } else if (inFunction()) {
+    _offset -= typesize;
+    offset = _offset;
+  } else {
+    offset = 0;
+  }
+  symbol->offset(offset);
+
+  if(inFunction()) {
+    
+    if(_inFunctionArgs || node->initializer() == nullptr) {
+      return;
+    }
+
+  acceptCovariantNode(node->type(), node->initializer(), lvl);
+
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.LOCAL(symbol->offset());
+    _pf.STDOUBLE();
+  } else {
+    _pf.LOCAL(symbol->offset());
+    _pf.STINT();
+  }
+
+  return;
+  }
+
+  if (symbol->qualifier() == tFORWARD || symbol->qualifier() == tEXTERNAL) {
+    _externalFunctionsToDeclare.insert(symbol->name());
+    return;
+  }
+  
+  _externalFunctionsToDeclare.erase(symbol->name());
+
+  if (node->initializer() == nullptr) {
+    _pf.BSS();
+    _pf.ALIGN();
+
+    if (symbol->qualifier() == tPUBLIC) {
+      _pf.GLOBAL(symbol->name(), _pf.OBJ());
+    }
+
+    _pf.LABEL(symbol->name());
+    _pf.SALLOC(typesize);
+    return;
+  }
+
+  if (!isInstanceOf<cdk::integer_node, cdk::double_node, cdk::string_node, 
+  til::nullptr_node, til::function_node>(node->initializer())) {
+      THROW_ERROR("non-literal initializer for global variable '" + symbol->name() + "'");
+  }
+  
+  _pf.DATA();
+  _pf.ALIGN();
+
+  if (symbol->qualifier() == tPUBLIC) {
+    _pf.GLOBAL(symbol->name(), _pf.OBJ());
+  }
+
+  _pf.LABEL(symbol->name());
+
+  if (node->is_typed(cdk::TYPE_DOUBLE) && node->initializer()->is_typed(cdk::TYPE_INT)) {
+    auto int_node = dynamic_cast<cdk::integer_node*>(node->initializer());
+    _pf.SDOUBLE(int_node->value());
+  } else {
+    node->initializer()->accept(this, lvl);
+  }
+  
 }
 
 void til::postfix_writer::do_function_node(til::function_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  
+  std::string functionLabel;
+
+  if (node->is_main()) {
+    functionLabel = "_main";
+  } else {
+    functionLabel = mklbl(++_lbl);
+  }
+
+  //keep track of the current function
+  _functionLabels.push(functionLabel);
+
+  _pf.ALIGN();
+
+  if (node->is_main()) {
+    _pf.GLOBAL("_main", _pf.FUNC());
+  }
+  _pf.LABEL(_functionLabels.top());
+
+
+  auto oldOffset = _offset;
+  _offset = 8;
+  _symtab.push();
+
+  _inFunctionArgs = true;
+  node->args()->accept(this, lvl);
+  _inFunctionArgs = false;
+
+  // compute stack size to be reserved for local variables
+  frame_size_calculator fsc(_compiler, _symtab);
+  node->block()->accept(&fsc, lvl);
+  _pf.ENTER(fsc.localsize());
+
+  auto oldFunctionRetLabel = _currentFunctionRetLabel;
+  _currentFunctionRetLabel = mklbl(++_lbl);
+
+  auto oldFunctionLoopLabels = _currentFunctionLoopLabels;
+  _currentFunctionLoopLabels = new std::vector<std::pair<std::string, std::string>>();
+
+  _offset = 0;
+
+  node->block()->accept(this, lvl);
+
+  if (node->is_main()) {
+    _pf.INT(0);
+    _pf.STFVAL32();
+  }
+
+  _pf.ALIGN();
+  _pf.LABEL(_currentFunctionRetLabel);
+  _pf.LEAVE();
+  _pf.RET();
+
+  delete _currentFunctionLoopLabels;
+  _currentFunctionLoopLabels = oldFunctionLoopLabels;
+  _currentFunctionRetLabel = oldFunctionRetLabel;
+  _offset = oldOffset;
+  _symtab.pop();
+  _functionLabels.pop();
+
+  // declare external functions
+  if (node->is_main()) {
+    for (auto name : _externalFunctionsToDeclare) {
+      _pf.EXTERN(name);
+    }
+    return;
+  }
 }
 
 void til::postfix_writer::do_function_call_node(til::function_call_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  throw "not implemented";
+  
+  std::shared_ptr<cdk::functional_type> functype;
+
+  if (node->func() == nullptr) {
+    auto symbol = _symtab.find("@", 1);
+    functype = cdk::functional_type::cast(symbol->type());
+  } else {
+    functype = cdk::functional_type::cast(node->func()->type());
+  }
+
+  int args_size = 0;
+
+  for (size_t i = node->args()->size(); i > 0; i--) {
+    auto arg = dynamic_cast<cdk::expression_node*>(node->args()->node(i - 1));
+
+    args_size += arg->type()->size();
+    acceptCovariantNode(functype->input(i - 1), arg, lvl + 2);
+  }
+
+  _externalFunctionName = std::nullopt;
+  if (node->func() == nullptr) {
+    _pf.ADDR(_functionLabels.top());
+  } else {
+    node->func()->accept(this, lvl);
+  }
+
+  if(_externalFunctionName) {
+    _pf.CALL(*_externalFunctionName);
+    _externalFunctionName = std::nullopt;
+  } else {
+    _pf.BRANCH();
+  }
+
+  if (args_size > 0) {
+    _pf.TRASH(args_size);
+  }
+
+  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.LDFVAL64();
+  } else if (!node->is_typed(cdk::TYPE_VOID)) {
+    _pf.LDFVAL32();
+  }
 }
 
 void til::postfix_writer::do_return_node(til::return_node * const node, int lvl) {

@@ -28,6 +28,10 @@ void til::frame_size_calculator::do_declaration_node(til::declaration_node *cons
   _localsize += node->type()->size();
 }
 
+void til::frame_size_calculator::do_loop_node(til::loop_node * const node, int lvl) {
+  node->block()->accept(this, lvl);
+}
+
 //---------------------------------------------------------------------------
 
 void til::frame_size_calculator::do_nil_node(cdk::nil_node * const node, int lvl) {
