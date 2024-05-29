@@ -77,16 +77,16 @@ bool parseDouble(const std::string &str, double &out);
 <X_STRING>\"           yy_pop_state(); return tSTRING;
 <X_STRING>\\\"         *yylval.s += yytext + 1;
 <X_STRING>\\\\         *yylval.s += yytext + 1;
-<X_STRING>\\t          *yylval.s += yytext + '\t';
-<X_STRING>\\n          *yylval.s += yytext + '\n';
-<X_STRING>\\r          *yylval.s += yytext + '\r';
+<X_STRING>\\t          *yylval.s += '\t';
+<X_STRING>\\n          *yylval.s += '\n';
+<X_STRING>\\r          *yylval.s += '\r';
 <X_STRING>\\0          yy_push_state(X_STRING_IGNORE);
 <X_STRING>\\[0-7]{1,3} {
                         /* Handling 1 to 3 digits of 8 bits (0 to 7) */
                         int i = std::stoi(yytext + 1, nullptr, 8);
                         if (i > 255) 
                           yyerror("out of range (maximum value allowed is 255)");
-                        *yylval.s = (char) i;
+                        *yylval.s += (char) i;
                        }
 
 <X_STRING>\\.          *yylval.s += yytext + 1;

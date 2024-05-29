@@ -551,7 +551,7 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
     if(symbol == nullptr) {
       throw std::string("recursive call outside of function");
     } else if (symbol->is_main()) {
-      throw std::string("recursive call inside begin end block");
+      throw std::string("recursive call inside main program");
     }
     
     functype = cdk::functional_type::cast(symbol->type());
