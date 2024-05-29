@@ -75,7 +75,7 @@ fdecl : '(' tPUBLIC   type tIDENTIFIER      ')'  { $$ = new til::declaration_nod
       | '(' tPUBLIC   tVAR tIDENTIFIER expr ')'  { $$ = new til::declaration_node(LINE, tPUBLIC, nullptr, *$4, $5); delete $4; }
       | '(' tPUBLIC        tIDENTIFIER expr ')'  { $$ = new til::declaration_node(LINE, tPUBLIC, nullptr, *$3, $4); delete $3; }
       | '(' tEXTERNAL type tIDENTIFIER      ')'  { $$ = new til::declaration_node(LINE, tEXTERNAL, $3, *$4, nullptr); delete $4; }
-      | '(' tFORWARD  type tIDENTIFIER      ')'  { $$ = new til::declaration_node(LINE, tEXTERNAL, $3, *$4, nullptr); delete $4; }
+      | '(' tFORWARD  type tIDENTIFIER      ')'  { $$ = new til::declaration_node(LINE, tFORWARD, $3, *$4, nullptr); delete $4; }
       |               decl /* private */         { $$ = $1; }
       ;
 
