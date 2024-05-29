@@ -14,7 +14,7 @@ bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left
   if(left->name() == cdk::TYPE_UNSPEC || right->name() == cdk::TYPE_UNSPEC) {
     return false;
   } else if (left->name() == cdk::TYPE_FUNCTIONAL) {
-    if (right->name() == cdk::TYPE_FUNCTIONAL) {
+    if (right->name() != cdk::TYPE_FUNCTIONAL) {
       return false;
     }
 
@@ -163,7 +163,7 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
       node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
     } else if (node->right()->is_typed(cdk::TYPE_UNSPEC)) {
       node->right()->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
-      node->type(node->left()->type());
+      node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
     } else {
       throw std::string("wrong type in right argument of arithmetic binary expression");
     }
@@ -186,18 +186,23 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
 }
 
 void til::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
+  // for ints, doubles and pointer offsets
   processBinaryArithmeticExpression(node, lvl, true, true, false);
 }
 void til::type_checker::do_sub_node(cdk::sub_node *const node, int lvl) {
+  // for ints, doubles, pointer offsets and pointer subbtractions
   processBinaryArithmeticExpression(node, lvl, true, true, true);
 }
 void til::type_checker::do_mul_node(cdk::mul_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryArithmeticExpression(node, lvl, true, false, false);
 }
 void til::type_checker::do_div_node(cdk::div_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryArithmeticExpression(node, lvl, true, false, false);
 }
 void til::type_checker::do_mod_node(cdk::mod_node *const node, int lvl) {
+  // only for ints
   processBinaryArithmeticExpression(node, lvl, false, false, false);
 }
 
@@ -235,8 +240,8 @@ void til::type_checker::processBinaryPredicateExpression(cdk::binary_operation_n
       node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     } else if (node->right()->is_typed(cdk::TYPE_POINTER)) {
       node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-    } else if (node->left()->is_typed(cdk::TYPE_INT) || (acceptDoubles && node->right()->is_typed(cdk::TYPE_DOUBLE))) {
-      node->left()->type(node->left()->type());
+    } else if (node->right()->is_typed(cdk::TYPE_INT) || (acceptDoubles && node->right()->is_typed(cdk::TYPE_DOUBLE))) {
+      node->left()->type(node->right()->type());
     } else {
       throw std::string("wrong type in right argument of predicate binary expression");
     }
@@ -266,10 +271,10 @@ void til::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
-  processBinaryPredicateExpression(node, lvl, true);
+  processBinaryPredicateExpression(node, lvl, false);
 }
 void til::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
-  processBinaryPredicateExpression(node, lvl, true);
+  processBinaryPredicateExpression(node, lvl, false);
 }
 
 //---------------------------------------------------------------------------
@@ -363,10 +368,22 @@ void til::type_checker::do_read_node(til::read_node *const node, int lvl) {
 
 void til::type_checker::do_if_node(til::if_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+
+  if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
+    node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("wrong type in condition of if instruction");
+  }
 }
 
 void til::type_checker::do_if_else_node(til::if_else_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+  
+  if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
+    node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("wrong type in condition of if-else instruction");
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -403,6 +420,11 @@ void til::type_checker::do_index_node(til::index_node *const node, int lvl) {
   ASSERT_UNSPEC;
 
   node->pointer()->accept(this, lvl + 2);
+  if (!node->pointer()->is_typed(cdk::TYPE_POINTER)) {
+    throw std::string("wrong type in pointer index's base (expected pointer)");
+  }
+
+  node->index()->accept(this, lvl + 2);
   if (node->index()->is_typed(cdk::TYPE_UNSPEC)) {
     node->index()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (!node->index()->is_typed(cdk::TYPE_INT)) {
@@ -455,11 +477,11 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
         node->initializer()->type(cdk::reference_type::create(4, cdk::primitive_type::create(4, cdk::TYPE_INT)));
       }
     } else if (node->initializer()->is_typed(cdk::TYPE_VOID)) {
-      throw std::string("cannot clare variable of type void");
+      throw std::string("cannot declare variable of type void");
     }
 
     node->type(node->initializer()->type());
-  } else { // nott auto; node already has a type set
+  } else { // not var
     if (node->initializer() != nullptr) {
       node->initializer()->accept(this, lvl + 2);
 
@@ -504,8 +526,8 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
      _symtab.replace(node->identifier(), symbol);
      _parent->set_new_symbol(symbol);
      return;
-    } 
-  }  
+    }
+  }
   
   throw std::string("redeclaration of variable '" + node->identifier() + "'");
 }
@@ -524,7 +546,7 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
 
   std::shared_ptr<cdk::functional_type> functype;
 
-  if(node->func() == nullptr) {
+  if(node->func() == nullptr) { // recursive call
     auto symbol = _symtab.find("@", 1);
     if(symbol == nullptr) {
       throw std::string("recursive call outside of function");
@@ -545,7 +567,7 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
   
   
   if (functype->input()->length() != node->args()->size()) {
-    throw std::string("wrong number of arguments in functionc call");
+    throw std::string("wrong number of arguments in function call");
   }
 
   for (size_t i = 0; i < node->args()->size(); i++) {
@@ -612,6 +634,12 @@ void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
 
 void til::type_checker::do_loop_node(til::loop_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+
+  if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
+    node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("wrong type in condition of loop instruction");
+  }
 }
 
 void til::type_checker::do_next_node(til::next_node *const node, int lvl) {
