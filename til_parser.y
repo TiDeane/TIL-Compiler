@@ -102,7 +102,7 @@ types : types type { $$ = $1; $$->push_back($2); }
       | type       { $$ = new std::vector<std::shared_ptr<cdk::basic_type>>(1, $1); }
       ;
 
-ref_type : referable_type '!' { $$ = $1; }
+ref_type : referable_type '!' { $$ = cdk::reference_type::create(4, $1); }
          ;
 
 void_ref_type : void_ref_type '!' { $$ = $1; }
