@@ -9,22 +9,23 @@ void til::frame_size_calculator::do_sequence_node(cdk::sequence_node *const node
 }
 
 void til::frame_size_calculator::do_if_node(til::if_node *const node, int lvl) {
-  node->block()->accept(this, lvl + 2);
+  node->block()->accept(this, lvl);
 }
 
 void til::frame_size_calculator::do_if_else_node(til::if_else_node *const node, int lvl) {
-  node->thenblock()->accept(this, lvl + 2);
-  if (node->elseblock()) node->elseblock()->accept(this, lvl + 2);
+  node->thenblock()->accept(this, lvl);
+  if (node->elseblock()) node->elseblock()->accept(this, lvl);
 }
 
 void til::frame_size_calculator::do_block_node(til::block_node *const node, int lvl) {
   _symtab.push();
-  if (node->declarations()) node->declarations()->accept(this, lvl + 2);
-  if (node->instructions()) node->instructions()->accept(this, lvl + 2);
+  if (node->declarations()) node->declarations()->accept(this, lvl);
+  if (node->instructions()) node->instructions()->accept(this, lvl);
   _symtab.pop();
 }
 
 void til::frame_size_calculator::do_declaration_node(til::declaration_node *const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
   _localsize += node->type()->size();
 }
 

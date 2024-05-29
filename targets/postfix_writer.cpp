@@ -407,7 +407,7 @@ void til::postfix_writer::do_print_node(til::print_node * const node, int lvl) {
       exit(1);
     }
 
-    if (node->newline() && ix == node->arguments()->size() - 1) {
+    if (node->newline() && ix == (node->arguments()->size() - 1)) {
       _externalFunctionsToDeclare.insert("println");
       _pf.CALL("println");
     }
