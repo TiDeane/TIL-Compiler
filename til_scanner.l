@@ -108,8 +108,12 @@ bool parseDouble(const std::string &str, double &out);
 "0x"                        yy_push_state(X_HEX_INT);
 <X_HEX_INT>[[:xdigit:]]+    {
                               if (parseInt(yytext, 16, yylval.i)) {
-                                yy_pop_state();
-                                return tINTEGER;
+                                if (yylval.i == 0) {
+                                  yyerror("zero isn't valid as hexadecimal");
+                                } else {
+                                  yy_pop_state();
+                                  return tINTEGER;
+                                }
                               } else {
                                 yyerror("integer overflow");
                               }
