@@ -24,7 +24,7 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
 
   bool needsWrap = false;
 
-  if (lfunc_type->output(0)->name() == cdk::TYPE_DOUBLE && rfunc_type->output(0)->name() == cdk::TYPE_DOUBLE) {
+  if (lfunc_type->output(0)->name() == cdk::TYPE_DOUBLE && rfunc_type->output(0)->name() == cdk::TYPE_INT) {
     needsWrap = true;
   } else {
     for (size_t i = 0; i < lfunc_type->input_length(); i++) {
@@ -130,8 +130,8 @@ void til::postfix_writer::do_string_node(cdk::string_node * const node, int lvl)
 
   if (inFunction()) {
     /* leave the address on the stack */
-    _pf.TEXT(); // return to the TEXT segment
-    _pf.ADDR(mklbl(lbl1)); // the string to be printed
+    _pf.TEXT(_functionLabels.top()); // return to the TEXT segment
+    _pf.ADDR(mklbl(lbl1)); // the string to be stored
   } else {
     _pf.DATA();
     _pf.SADDR(mklbl(lbl1));
@@ -199,7 +199,7 @@ void til::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   
   if(node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) {
     _pf.I2D();
-  } else if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) {
+  } else if (node->is_typed(cdk::TYPE_POINTER) && node->left()->is_typed(cdk::TYPE_INT)) {
     auto ref = cdk::reference_type::cast(node->type());
     _pf.INT(std::max(static_cast<size_t>(1), ref->referenced()->size()));
     _pf.MUL();
@@ -208,7 +208,7 @@ void til::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   node->right()->accept(this, lvl);
   if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
     _pf.I2D();
-  } else if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
+  } else if (node->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT)) {
     auto ref = cdk::reference_type::cast(node->type());
     _pf.INT(std::max(static_cast<size_t>(1), ref->referenced()->size()));
     _pf.MUL();
@@ -335,7 +335,7 @@ void til::postfix_writer::do_variable_node(cdk::variable_node * const node, int 
   if (symbol->qualifier() == tEXTERNAL) {
     _externalFunctionName = symbol->name();
   } else if (symbol->global()) {
-    _pf.ADDR(symbol->name());
+    _pf.ADDR(node->name());
   } else {
     _pf.LOCAL(symbol->offset());
   }
@@ -407,7 +407,7 @@ void til::postfix_writer::do_print_node(til::print_node * const node, int lvl) {
       exit(1);
     }
 
-    if (node->newline() && ix == (node->arguments()->size() - 1)) {
+    if (node->newline()) {
       _externalFunctionsToDeclare.insert("println");
       _pf.CALL("println");
     }
@@ -420,14 +420,13 @@ void til::postfix_writer::do_read_node(til::read_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   
   if (node->is_typed(cdk::TYPE_DOUBLE)) {
-    _externalFunctionsToDeclare.insert("readi");
-    _pf.CALL("readi");
-    _pf.LDFVAL32();
-  } else {
-    
     _externalFunctionsToDeclare.insert("readd");
     _pf.CALL("readd");
     _pf.LDFVAL64();
+  } else {
+    _externalFunctionsToDeclare.insert("readi");
+    _pf.CALL("readi");
+    _pf.LDFVAL32();
   }
 }
 
@@ -440,6 +439,7 @@ void til::postfix_writer::do_if_node(til::if_node * const node, int lvl) {
   _pf.JZ(mklbl(lbl1 = ++_lbl));
   node->block()->accept(this, lvl + 2);
   _visitedFinalInstruction = false;
+  _pf.ALIGN();
   _pf.LABEL(mklbl(lbl1));
 }
 
@@ -621,6 +621,7 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
   //keep track of the current function
   _functionLabels.push(functionLabel);
 
+  _pf.TEXT(_functionLabels.top());
   _pf.ALIGN();
 
   if (node->is_main()) {
@@ -675,6 +676,14 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
       _pf.EXTERN(name);
     }
     return;
+  }
+
+  if (inFunction()) {
+    _pf.TEXT(_functionLabels.top());
+    _pf.ADDR(functionLabel);
+  } else {
+    _pf.DATA();
+    _pf.SADDR(functionLabel);
   }
 }
 
