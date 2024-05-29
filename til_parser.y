@@ -85,7 +85,7 @@ type : referable_type { $$ = $1; }
 
 referable_type : tTYPE_INT    { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
                | tTYPE_DOUBLE { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
-               | tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_DOUBLE); }
+               | tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
                | func_type    { $$ = $1; }
                | ref_type     { $$ = $1; }
                ;
