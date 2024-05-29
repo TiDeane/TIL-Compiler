@@ -190,7 +190,6 @@ void til::xml_writer::do_if_else_node(til::if_else_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void til::xml_writer::do_alloc_node(til::alloc_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
   do_unary_operation(node, lvl);
 }
 
