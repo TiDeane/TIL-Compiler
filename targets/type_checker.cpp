@@ -11,8 +11,12 @@
 
 bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left, 
         std::shared_ptr<cdk::basic_type> right, bool allowCovariant) {
+  
+  // if any of the types is undefined, then they are not equal        
   if(left->name() == cdk::TYPE_UNSPEC || right->name() == cdk::TYPE_UNSPEC) {
     return false;
+
+  // if both types are functional, then they must have the same input and output types  
   } else if (left->name() == cdk::TYPE_FUNCTIONAL) {
     if (right->name() != cdk::TYPE_FUNCTIONAL) {
       return false;
@@ -42,6 +46,8 @@ bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left
     return true;
   } else if (right->name() == cdk::TYPE_FUNCTIONAL) {
     return false;
+  
+  // if left is a pointer, then right must be a pointer and they must reference the same type
   } else if (left->name() == cdk::TYPE_POINTER) {
     if (right->name() != cdk::TYPE_POINTER) {
       return false;
@@ -94,6 +100,7 @@ void til::type_checker::do_string_node(cdk::string_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
+// acceptDoubles parameter is for the unary expressions that allow doubles
 void til::type_checker::processUnaryExpression(cdk::unary_operation_node *const node, int lvl, bool acceptDoubles) {
   ASSERT_UNSPEC;
 
@@ -135,6 +142,8 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
 
   node->left()->accept(this, lvl + 2);
 
+  // if left is an int or undefined, then right must be an int or undefined 
+  //  (or double or pointer if the binary expression allows it)
   if(node->left()->is_typed(cdk::TYPE_INT) || node->left()->is_typed(cdk::TYPE_UNSPEC)) {
     node->right()->accept(this, lvl + 2);
 
@@ -156,6 +165,7 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
     if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
       node->left()->type(node->type());
     }
+
   } else if (acceptDoubles && node->left()->is_typed(cdk::TYPE_DOUBLE)) {
     node->right()->accept(this, lvl + 2);
 
@@ -190,7 +200,7 @@ void til::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
   processBinaryArithmeticExpression(node, lvl, true, true, false);
 }
 void til::type_checker::do_sub_node(cdk::sub_node *const node, int lvl) {
-  // for ints, doubles, pointer offsets and pointer subbtractions
+  // for ints, doubles, pointer offsets and pointer subtractions
   processBinaryArithmeticExpression(node, lvl, true, true, true);
 }
 void til::type_checker::do_mul_node(cdk::mul_node *const node, int lvl) {
@@ -253,15 +263,19 @@ void til::type_checker::processBinaryPredicateExpression(cdk::binary_operation_n
 }
 
 void til::type_checker::do_lt_node(cdk::lt_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_le_node(cdk::le_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_ge_node(cdk::ge_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_gt_node(cdk::gt_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
@@ -271,9 +285,11 @@ void til::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
+  // for ints
   processBinaryPredicateExpression(node, lvl, false);
 }
 void til::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
+  // for ints
   processBinaryPredicateExpression(node, lvl, false);
 }
 
@@ -307,12 +323,14 @@ void til::type_checker::do_assignment_node(cdk::assignment_node *const node, int
   node->lvalue()->accept(this, lvl);
   node->rvalue()->accept(this, lvl);
 
+  //if rvalue doesn't have a type, then it will have the lvalue type
   if (node->rvalue()->is_typed(cdk::TYPE_UNSPEC)) {
     node->rvalue()->type(node->lvalue()->type());
   } else if (node->rvalue()->is_typed(cdk::TYPE_POINTER) && node->lvalue()->is_typed(cdk::TYPE_POINTER)) {
     auto lref = cdk::reference_type::cast(node->lvalue()->type());
     auto rref = cdk::reference_type::cast(node->rvalue()->type());
 
+    // if the right reference is undefined or void, then rvalue type will have lvalue type
     if (rref->referenced()->name() == cdk::TYPE_UNSPEC ||
         rref->referenced()->name() == cdk::TYPE_VOID ||
         lref->referenced()->name() == cdk::TYPE_VOID) {
@@ -337,6 +355,7 @@ void til::type_checker::do_evaluation_node(til::evaluation_node *const node, int
   } else if (node->argument()->is_typed(cdk::TYPE_POINTER)) {
     auto ref = cdk::reference_type::cast(node->argument()->type());
 
+    // if argument is a pointer to an undefined type, then it will reference an int
     if (ref != nullptr && ref->referenced()->name() == cdk::TYPE_UNSPEC) {
       node->argument()->type(cdk::reference_type::create(4, cdk::primitive_type::create(4, cdk::TYPE_INT)));
     }
@@ -345,12 +364,15 @@ void til::type_checker::do_evaluation_node(til::evaluation_node *const node, int
 
 void til::type_checker::do_print_node(til::print_node *const node, int lvl) {
   for (size_t i = 0; i < node->arguments()->size(); i++) {
+    // convert arguments
     auto child = dynamic_cast<cdk::expression_node*>(node->arguments()->node(i));
 
     child->accept(this, lvl);
 
+    // if argument is not typed, then it will be an int
     if (child->is_typed(cdk::TYPE_UNSPEC)) {
       child->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    // if argument is not an int, double or string, then it will throw an error
     } else if (!child->is_typed(cdk::TYPE_INT) && !child->is_typed(cdk::TYPE_DOUBLE) && !child->is_typed(cdk::TYPE_STRING)) {
       throw std::string("wrong type for argument of print instruction");
     }
@@ -372,7 +394,7 @@ void til::type_checker::do_if_node(til::if_node *const node, int lvl) {
   if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
     node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("wrong type in condition of if instruction");
+    throw std::string("expected integer condition");
   }
 }
 
@@ -382,7 +404,7 @@ void til::type_checker::do_if_else_node(til::if_else_node *const node, int lvl) 
   if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
     node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("wrong type in condition of if-else instruction");
+    throw std::string("expected integer condition");
   }
 }
 
@@ -433,6 +455,7 @@ void til::type_checker::do_index_node(til::index_node *const node, int lvl) {
 
   auto pointerType = cdk::reference_type::cast(node->pointer()->type());
 
+  // if the pointer is a pointer to an undefined type, then it will reference an int
   if (pointerType->referenced()->name() == cdk::TYPE_UNSPEC) {
     pointerType = cdk::reference_type::create(4, cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->pointer()->type(pointerType);
@@ -443,7 +466,7 @@ void til::type_checker::do_index_node(til::index_node *const node, int lvl) {
 
 void til::type_checker::do_nullptr_node(til::nullptr_node *const node, int lvl) {
   ASSERT_UNSPEC;
-
+  // nullptr is a pointer to an undefined type
   node->type(cdk::reference_type::create(4, cdk::primitive_type::create(0, cdk::TYPE_UNSPEC)));
 }
 
@@ -491,6 +514,8 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
         } else {
           node->initializer()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
         }
+
+        // if initializer is a pointer, then it must reference the same type as the node type  
       } else if (node->initializer()->is_typed(cdk::TYPE_POINTER) && node->is_typed(cdk::TYPE_POINTER)) {
         auto node_ref = cdk::reference_type::cast(node->type());
         auto init_ref = cdk::reference_type::cast(node->initializer()->type());
@@ -506,12 +531,13 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
       }
     }
   }
-  
+
   if(node->qualifier() == tEXTERNAL && !node->is_typed(cdk::TYPE_FUNCTIONAL)) {
     throw std::string("external declaration of non-function '" + node->identifier() + "'");
   
   }
-  
+
+  // save symbol in the current context  
   auto symbol = make_symbol(node->type(), node->identifier(), node->qualifier());
   
   if(_symtab.insert(node->identifier(), symbol)) {
@@ -521,6 +547,7 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
 
   auto prev = _symtab.find(node->identifier());
 
+  // if the previous declaration is a forward declaration, then it can be replaced
   if(prev != nullptr && prev->qualifier() == tFORWARD) {
     if(deepTypeComparison(prev->type(), symbol->type(), false)) {
      _symtab.replace(node->identifier(), symbol);
@@ -536,6 +563,7 @@ void til::type_checker::do_function_node(til::function_node *const node, int lvl
   auto function = til::make_symbol(node->type(), "@");
   function->is_main(node->is_main());
 
+  // check if function is already declared in local context
   if (!_symtab.insert(function->name(), function)) {
     _symtab.replace(function->name(), function);
   }
@@ -602,13 +630,15 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
 }
 
 void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
+  // symbol of current function is stored in the previous context
   auto symbol =_symtab.find("@", 1);
   if(symbol == nullptr) {
-    throw std::string("return statement outside begin end block");
+    throw std::string("return statement outside of block");
   }  
 
   std::shared_ptr<cdk::functional_type> function_type = cdk::functional_type::cast(symbol->type());
 
+  // if function has no return type or is void, then return statement is not allowed
   auto rettype = function_type->output(0);
   auto rettype_name = rettype->name();
   
