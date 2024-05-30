@@ -9,12 +9,16 @@
 
 //---------------------------------------------------------------------------
 
+/*
+ * Converts node to a covariant type (to node_type)
+*/
 void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> const node_type, 
             cdk::expression_node * const node, int lvl) {
+  // If neither the node nor the desired type are functional type
   if (node_type->name() != cdk::TYPE_FUNCTIONAL || !node->is_typed(cdk::TYPE_FUNCTIONAL)) {
     node->accept(this, lvl);
     if (node_type->name() == cdk::TYPE_DOUBLE && node->is_typed(cdk::TYPE_INT)) {
-      _pf.I2D();
+      _pf.I2D(); // Convert from int to double
     }
     return;
   }
@@ -22,8 +26,10 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
   auto lfunc_type = cdk::functional_type::cast(node_type);
   auto rfunc_type = cdk::functional_type::cast(node->type());
 
+  // needsWrap remains false if both functions already have the same type
   bool needsWrap = false;
 
+  // If the output of the left function is double and the output of the right function is int we need to wrap the function
   if (lfunc_type->output(0)->name() == cdk::TYPE_DOUBLE && rfunc_type->output(0)->name() == cdk::TYPE_INT) {
     needsWrap = true;
   } else {
@@ -36,12 +42,26 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
   }
 
   if (!needsWrap) {
+    // Both functions have the same type
     node->accept(this, lvl);
     return;
   }
 
   auto lineno = node->lineno();
 
+  // Wrap the functions
+  wrapFunction(lineno, node_type, node, lvl);
+}
+
+/*
+ * Wraps the function (i.e. if they have different types, performs a convertion)
+*/
+void til::postfix_writer::wrapFunction(int lineno, std::shared_ptr<cdk::basic_type> const node_type, cdk::expression_node * const node, int lvl) {
+
+  auto lfunc_type = cdk::functional_type::cast(node_type);
+  auto rfunc_type = cdk::functional_type::cast(node->type());
+
+  // declare the wrapping function, that wraps the function in another function that does this conversion
   auto aux_global_decl_name = "_wrapper_target_" + std::to_string(_lbl++);
   auto aux_global_decl = new til::declaration_node(lineno, tPRIVATE, rfunc_type, aux_global_decl_name, nullptr);
   auto aux_global_var = new cdk::variable_node(lineno, aux_global_decl_name);
@@ -64,6 +84,7 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
 
   auto args = new cdk::sequence_node(lineno);
   auto call_args = new cdk::sequence_node(lineno);
+  // create the arguments for the wrapping function
   for (size_t i = 0; i < lfunc_type->input_length(); i++) {
     auto arg_name = "_arg" + std::to_string(i);
 
@@ -82,6 +103,7 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
   
   wrapping_function->accept(this, lvl);
 }
+
 
 //---------------------------------------------------------------------------
 
@@ -106,7 +128,7 @@ void til::postfix_writer::do_integer_node(cdk::integer_node * const node, int lv
   if(inFunction()) {
     _pf.INT(node->value()); // push an integer
   } else {
-    _pf.SINT(node->value());
+    _pf.SINT(node->value()); // push a static integer
   }
 }
 
@@ -115,7 +137,7 @@ void til::postfix_writer::do_double_node(cdk::double_node * const node, int lvl)
   if(inFunction()) {
     _pf.DOUBLE(node->value()); // push a double
   } else {
-    _pf.SDOUBLE(node->value());
+    _pf.SDOUBLE(node->value()); // push a static double
   }
 }
 
@@ -161,7 +183,7 @@ void til::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
 
   node->argument()->accept(this, lvl + 2);
-  _pf.INT(0);
+  _pf.INT(0); 
   _pf.EQ();
 }
 
@@ -169,25 +191,27 @@ void til::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
 
 void til::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+
   node->left()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) {
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) {
     _pf.I2D();
-  } else if (node->is_typed(cdk::TYPE_POINTER) && node->left()->is_typed(cdk::TYPE_INT)) {
+  } else if (node->type()->name() == cdk::TYPE_POINTER && node->left()->type()->name() == cdk::TYPE_INT) {
     auto ref = cdk::reference_type::cast(node->type());
     _pf.INT(std::max(static_cast<size_t>(1), ref->referenced()->size()));
     _pf.MUL();
   }
 
   node->right()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) {
     _pf.I2D();
-  } else if (node->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT)) {
+  } else if (node->type()->name() == cdk::TYPE_POINTER && node->right()->type()->name() == cdk::TYPE_INT) {
+    // To add a value to a pointer, we need to increment the pointer by value * sizeof(value_type)
     auto ref = cdk::reference_type::cast(node->type());
     _pf.INT(std::max(static_cast<size_t>(1), ref->referenced()->size()));
     _pf.MUL();
   }
 
-  if (node->is_typed(cdk::TYPE_DOUBLE)) {
+  if (node->type()->name() == cdk::TYPE_DOUBLE) {
     _pf.DADD();
   } else {
     _pf.ADD();    
@@ -195,8 +219,8 @@ void til::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
 }
 void til::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
   
+  node->left()->accept(this, lvl);
   if(node->is_typed(cdk::TYPE_DOUBLE) && node->left()->is_typed(cdk::TYPE_INT)) {
     _pf.I2D();
   } else if (node->is_typed(cdk::TYPE_POINTER) && node->left()->is_typed(cdk::TYPE_INT)) {
@@ -209,6 +233,7 @@ void til::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   if (node->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT)) {
     _pf.I2D();
   } else if (node->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT)) {
+    // To subtract a value from a pointer, we need to subtract the pointer by value * sizeof(value_type)
     auto ref = cdk::reference_type::cast(node->type());
     _pf.INT(std::max(static_cast<size_t>(1), ref->referenced()->size()));
     _pf.MUL();
@@ -225,7 +250,6 @@ void til::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
     _pf.INT(std::max(static_cast<size_t>(1), lref->referenced()->size()));
     _pf.DIV();
   }
-  
 }
 
 void til::postfix_writer::prepareIDBinaryExpression(cdk::binary_operation_node * const node, int lvl) {
@@ -330,7 +354,7 @@ void til::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
 void til::postfix_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
 
-  auto symbol = _symtab.find(node->name());
+  auto symbol = _symtab.find(node->name()); // variable has already been declared
   
   if (symbol->qualifier() == tEXTERNAL) {
     _externalFunctionName = symbol->name();
@@ -406,11 +430,12 @@ void til::postfix_writer::do_print_node(til::print_node * const node, int lvl) {
       std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
       exit(1);
     }
+  }
 
-    if (node->newline()) {
-      _externalFunctionsToDeclare.insert("println");
-      _pf.CALL("println");
-    }
+  // we only call println in the end because it should only change line after printing all values
+  if (node->newline()) {
+    _externalFunctionsToDeclare.insert("println");
+    _pf.CALL("println");
   }
 }
 
@@ -507,6 +532,7 @@ void til::postfix_writer::do_sizeof_node(til::sizeof_node * const node, int lvl)
 
 void til::postfix_writer::do_block_node(til::block_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+  
   _symtab.push();
   node->declarations()->accept(this, lvl + 2);
 
@@ -532,36 +558,35 @@ void til::postfix_writer::do_declaration_node(til::declaration_node * const node
   reset_new_symbol();
 
   int offset = 0;
-  int typesize = node->type()->size();
+  int type_size = node->type()->size();
   
   if (_inFunctionArgs) {
     offset = _offset;
-    _offset += typesize;
+    _offset += type_size;
   } else if (inFunction()) {
-    _offset -= typesize;
+    _offset -= type_size; // stack is backwards inside function
     offset = _offset;
-  } else {
+  } else { // global
     offset = 0;
   }
   symbol->offset(offset);
 
-  if(inFunction()) {
-    
+  if (inFunction()) { // handle function args
     if(_inFunctionArgs || node->initializer() == nullptr) {
       return;
     }
 
-  acceptCovariantNode(node->type(), node->initializer(), lvl);
+    acceptCovariantNode(node->type(), node->initializer(), lvl);
 
-  if (node->is_typed(cdk::TYPE_DOUBLE)) {
-    _pf.LOCAL(symbol->offset());
-    _pf.STDOUBLE();
-  } else {
-    _pf.LOCAL(symbol->offset());
-    _pf.STINT();
-  }
+    if (node->is_typed(cdk::TYPE_DOUBLE)) {
+      _pf.LOCAL(symbol->offset());
+      _pf.STDOUBLE();
+    } else {
+      _pf.LOCAL(symbol->offset());
+      _pf.STINT();
+    }
 
-  return;
+    return;
   }
 
   if (symbol->qualifier() == tFORWARD || symbol->qualifier() == tEXTERNAL) {
@@ -580,12 +605,12 @@ void til::postfix_writer::do_declaration_node(til::declaration_node * const node
     }
 
     _pf.LABEL(symbol->name());
-    _pf.SALLOC(typesize);
+    _pf.SALLOC(type_size);
     return;
   }
 
   if (!isInstanceOf<cdk::integer_node, cdk::double_node, cdk::string_node, 
-  til::nullptr_node, til::function_node>(node->initializer())) {
+            til::nullptr_node, til::function_node>(node->initializer())) {
       THROW_ERROR("non-literal initializer for global variable '" + symbol->name() + "'");
   }
   
@@ -604,7 +629,6 @@ void til::postfix_writer::do_declaration_node(til::declaration_node * const node
   } else {
     node->initializer()->accept(this, lvl);
   }
-  
 }
 
 void til::postfix_writer::do_function_node(til::function_node * const node, int lvl) {
@@ -618,7 +642,7 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
     functionLabel = mklbl(++_lbl);
   }
 
-  //keep track of the current function
+  // keep track of the current function
   _functionLabels.push(functionLabel);
 
   _pf.TEXT(_functionLabels.top());
@@ -632,7 +656,7 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
 
   auto oldOffset = _offset;
   _offset = 8;
-  _symtab.push();
+  _symtab.push(); // enters function's scope
 
   _inFunctionArgs = true;
   node->args()->accept(this, lvl);
@@ -655,7 +679,7 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
 
   if (node->is_main()) {
     _pf.INT(0);
-    _pf.STFVAL32();
+    _pf.STFVAL32(); // returns 0 if main
   }
 
   _pf.ALIGN();
@@ -664,9 +688,9 @@ void til::postfix_writer::do_function_node(til::function_node * const node, int 
   _pf.RET();
 
   delete _currentFunctionLoopLabels;
-  _currentFunctionLoopLabels = oldFunctionLoopLabels;
-  _currentFunctionRetLabel = oldFunctionRetLabel;
-  _offset = oldOffset;
+  _currentFunctionLoopLabels = oldFunctionLoopLabels; // restore loop labels
+  _currentFunctionRetLabel = oldFunctionRetLabel; // restore return label
+  _offset = oldOffset; // restore offset
   _symtab.pop();
   _functionLabels.pop();
 
@@ -692,7 +716,7 @@ void til::postfix_writer::do_function_call_node(til::function_call_node * const 
   
   std::shared_ptr<cdk::functional_type> functype;
 
-  if (node->func() == nullptr) {
+  if (node->func() == nullptr) { // recursive call
     auto symbol = _symtab.find("@", 1);
     functype = cdk::functional_type::cast(symbol->type());
   } else {
@@ -701,6 +725,7 @@ void til::postfix_writer::do_function_call_node(til::function_call_node * const 
 
   int args_size = 0;
 
+  // visit in reverse since function stack is backwards
   for (size_t i = node->args()->size(); i > 0; i--) {
     auto arg = dynamic_cast<cdk::expression_node*>(node->args()->node(i - 1));
 
@@ -709,7 +734,7 @@ void til::postfix_writer::do_function_call_node(til::function_call_node * const 
   }
 
   _externalFunctionName = std::nullopt;
-  if (node->func() == nullptr) {
+  if (node->func() == nullptr) { // recursive call
     _pf.ADDR(_functionLabels.top());
   } else {
     node->func()->accept(this, lvl);
@@ -736,7 +761,7 @@ void til::postfix_writer::do_function_call_node(til::function_call_node * const 
 void til::postfix_writer::do_return_node(til::return_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   
-  auto symbol = _symtab.find("@", 1);
+  auto symbol = _symtab.find("@", 1); // every function has an @ symbol
   auto rettype = cdk::functional_type::cast(symbol->type())->output(0);
 
   if (rettype->name() != cdk::TYPE_VOID) {
@@ -749,7 +774,7 @@ void til::postfix_writer::do_return_node(til::return_node * const node, int lvl)
     }
   }
   _pf.JMP(_currentFunctionRetLabel);
-
+  // function ended
   _visitedFinalInstruction = true;
 }
 
@@ -768,6 +793,7 @@ void til::postfix_writer::executeControlLoopInstruction(T * const node) {
                 std::to_string(_currentFunctionLoopLabels->size()) + ")");
   }
 
+  // Gets condition label (0) or end label (1) for loop
   auto index = _currentFunctionLoopLabels->size() - lvl;
   auto label = std::get<P>(_currentFunctionLoopLabels->at(index));
   _pf.JMP(label);
@@ -784,20 +810,24 @@ void til::postfix_writer::do_loop_node(til::loop_node * const node, int lvl) {
   node->condition()->accept(this, lvl);
   _pf.JZ(mklbl(endLbl = ++_lbl));
 
+  // loop body
   _currentFunctionLoopLabels->push_back(std::make_pair(mklbl(condLbl), mklbl(endLbl)));
   node->block()->accept(this, lvl + 2);
   _visitedFinalInstruction = false;
   _currentFunctionLoopLabels->pop_back();
-
+  
+  // jump to condition
   _pf.JMP(mklbl(condLbl));
   _pf.ALIGN();
   _pf.LABEL(mklbl(endLbl));
 }
 
 void til::postfix_writer::do_next_node(til::next_node * const node, int lvl) {
+  // (0) - condition label of loop
   executeControlLoopInstruction<0>(node);
 }
 
 void til::postfix_writer::do_stop_node(til::stop_node * const node, int lvl) {
+  // (1) - end label of loop
   executeControlLoopInstruction<1>(node);
 }

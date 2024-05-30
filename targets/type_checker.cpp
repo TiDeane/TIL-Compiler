@@ -560,6 +560,7 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
 }
 
 void til::type_checker::do_function_node(til::function_node *const node, int lvl) {
+  // every function has an @ symbol
   auto function = til::make_symbol(node->type(), "@");
   function->is_main(node->is_main());
 

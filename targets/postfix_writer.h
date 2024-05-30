@@ -22,7 +22,7 @@ namespace til {
     bool _forceOutsideFunction = false;
     bool _inFunctionArgs = false;
     std::stack<std::string> _functionLabels; // labels of current visiting function
-    std::string _currentFunctionRetLabel;
+    std::string _currentFunctionRetLabel; // label to return to when "return" occurs
     int _offset;
     std::set<std::string> _externalFunctionsToDeclare;
     std::optional<std::string> _externalFunctionName; // name of external function to be called, if any
@@ -41,6 +41,7 @@ namespace til {
     }
   
   protected:
+    void wrapFunction(int lineno, std::shared_ptr<cdk::basic_type> const node_type, cdk::expression_node * const node, int lvl);
     void acceptCovariantNode(std::shared_ptr<cdk::basic_type> const node_type, cdk::expression_node * const node, int lvl);
     void prepareIDBinaryExpression(cdk::binary_operation_node * const node, int lvl);
     void prepareIDBinaryPredicateExpression(cdk::binary_operation_node * const node, int lvl);
