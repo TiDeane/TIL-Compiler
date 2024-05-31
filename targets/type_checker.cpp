@@ -9,11 +9,15 @@
 
 //---------------------------------------------------------------------------
 
+/*
+ * Recursively checks if two types are equal.
+ * "allowCovariant" decides whether covariant types are allowed
+*/
 bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left, 
         std::shared_ptr<cdk::basic_type> right, bool allowCovariant) {
   
   // if any of the types is undefined, then they are not equal        
-  if(left->name() == cdk::TYPE_UNSPEC || right->name() == cdk::TYPE_UNSPEC) {
+  if (left->name() == cdk::TYPE_UNSPEC || right->name() == cdk::TYPE_UNSPEC) {
     return false;
 
   // if both types are functional, then they must have the same input and output types  
@@ -25,25 +29,25 @@ bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left
     auto left_function = cdk::functional_type::cast(left);
     auto right_function = cdk::functional_type::cast(right);
 
-    if(left_function->input_length() != right_function->input_length()
-     || left_function->output_length() != right_function->output_length()) {
-     
-     return false;
+    if (left_function->input_length() != right_function->input_length()
+        || left_function->output_length() != right_function->output_length()) {
+      return false;
     }
 
-    for(size_t i = 0; i < left_function->input_length(); i++) {
-      if(!deepTypeComparison(right_function->input(i), left_function->input(i), allowCovariant)) {
+    for (size_t i = 0; i < left_function->input_length(); i++) {
+      if (!deepTypeComparison(right_function->input(i), left_function->input(i), allowCovariant)) {
         return false;
       }
     }
 
     for(size_t i = 0; i < left_function->output_length(); i++) {
-      if(!deepTypeComparison(left_function->output(i), right_function->output(i), allowCovariant)) {
+      if (!deepTypeComparison(left_function->output(i), right_function->output(i), allowCovariant)) {
         return false;
       }
     }
-
     return true;
+
+  // if left is not a function then right must not be a function
   } else if (right->name() == cdk::TYPE_FUNCTIONAL) {
     return false;
   
@@ -57,8 +61,12 @@ bool til::type_checker::deepTypeComparison(std::shared_ptr<cdk::basic_type> left
     auto right_pointer = cdk::reference_type::cast(right);
 
     return deepTypeComparison(left_pointer->referenced(), right_pointer->referenced(), false);
+
+  // if left is not a pointer then right must not be a pointer
   } else if (right->name() == cdk::TYPE_POINTER) {
     return false;
+  
+  // if left is a double covariants are allowed then right can be an int
   } else if (allowCovariant && left->name() == cdk::TYPE_DOUBLE) {
     return right->name() == cdk::TYPE_DOUBLE || right->name() == cdk::TYPE_INT;
   } else {
@@ -104,6 +112,7 @@ void til::type_checker::do_string_node(cdk::string_node *const node, int lvl) {
 void til::type_checker::processUnaryExpression(cdk::unary_operation_node *const node, int lvl, bool acceptDoubles) {
   ASSERT_UNSPEC;
 
+  // Unary expression argument must be int or double
   node->argument()->accept(this, lvl + 2);
   if (node->argument()->is_typed(cdk::TYPE_UNSPEC)) {
     node->argument()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -144,10 +153,10 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
 
   // if left is an int or undefined, then right must be an int or undefined 
   //  (or double or pointer if the binary expression allows it)
-  if(node->left()->is_typed(cdk::TYPE_INT) || node->left()->is_typed(cdk::TYPE_UNSPEC)) {
+  if (node->left()->is_typed(cdk::TYPE_INT) || node->left()->is_typed(cdk::TYPE_UNSPEC)) {
     node->right()->accept(this, lvl + 2);
 
-    if(node->right()->is_typed(cdk::TYPE_INT) || (acceptDoubles && node->right()->is_typed(cdk::TYPE_DOUBLE))) {
+    if (node->right()->is_typed(cdk::TYPE_INT) || (acceptDoubles && node->right()->is_typed(cdk::TYPE_DOUBLE))) {
       node->type(node->right()->type());
     } else if (node->right()->is_typed(cdk::TYPE_UNSPEC)) {
       node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -162,7 +171,7 @@ void til::type_checker::processBinaryArithmeticExpression(cdk::binary_operation_
       throw std::string("wrong type in right argument of arithmetic binary expression");
     }
     
-    if(node->left()->is_typed(cdk::TYPE_UNSPEC)) {
+    if (node->left()->is_typed(cdk::TYPE_UNSPEC)) {
       node->left()->type(node->type());
     }
 
@@ -218,7 +227,6 @@ void til::type_checker::do_mod_node(cdk::mod_node *const node, int lvl) {
 
 /*
  * Type checks the components of each predicate expression (return is always int)
- * Note: pointers are never accepted
  */
 void til::type_checker::processBinaryPredicateExpression(cdk::binary_operation_node *const node, int lvl, bool acceptDoubles) {
   ASSERT_UNSPEC;
@@ -228,6 +236,7 @@ void til::type_checker::processBinaryPredicateExpression(cdk::binary_operation_n
   if (node->left()->is_typed(cdk::TYPE_INT)) {
     node->right()->accept(this, lvl + 2);
     
+    // if right is undefined, then it will have the same type as left
     if (node->right()->is_typed(cdk::TYPE_UNSPEC)) {
       node->right()->type(node->left()->type());
     } else if (!node->right()->is_typed(cdk::TYPE_INT) 
@@ -245,6 +254,7 @@ void til::type_checker::processBinaryPredicateExpression(cdk::binary_operation_n
   } else if (node->left()->is_typed(cdk::TYPE_UNSPEC)) {
     node->right()->accept(this, lvl + 2);
 
+    // if left and right are undefined, then they will both be of type int
     if (node->right()->is_typed(cdk::TYPE_UNSPEC)) {
       node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
       node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -279,9 +289,11 @@ void til::type_checker::do_gt_node(cdk::gt_node *const node, int lvl) {
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
+  // for ints and doubles
   processBinaryPredicateExpression(node, lvl, true);
 }
 void til::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
@@ -532,15 +544,15 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
     }
   }
 
-  if(node->qualifier() == tEXTERNAL && !node->is_typed(cdk::TYPE_FUNCTIONAL)) {
+  // if it's an external declaration, then it must be a function declaration
+  if (node->qualifier() == tEXTERNAL && !node->is_typed(cdk::TYPE_FUNCTIONAL)) {
     throw std::string("external declaration of non-function '" + node->identifier() + "'");
-  
   }
 
   // save symbol in the current context  
   auto symbol = make_symbol(node->type(), node->identifier(), node->qualifier());
   
-  if(_symtab.insert(node->identifier(), symbol)) {
+  if (_symtab.insert(node->identifier(), symbol)) {
     _parent->set_new_symbol(symbol);
     return;
   }
@@ -548,8 +560,8 @@ void til::type_checker::do_declaration_node(til::declaration_node *const node, i
   auto prev = _symtab.find(node->identifier());
 
   // if the previous declaration is a forward declaration, then it can be replaced
-  if(prev != nullptr && prev->qualifier() == tFORWARD) {
-    if(deepTypeComparison(prev->type(), symbol->type(), false)) {
+  if (prev != nullptr && prev->qualifier() == tFORWARD) {
+    if (deepTypeComparison(prev->type(), symbol->type(), false)) {
      _symtab.replace(node->identifier(), symbol);
      _parent->set_new_symbol(symbol);
      return;
@@ -575,9 +587,9 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
 
   std::shared_ptr<cdk::functional_type> functype;
 
-  if(node->func() == nullptr) { // recursive call
+  if (node->func() == nullptr) { // recursive call
     auto symbol = _symtab.find("@", 1);
-    if(symbol == nullptr) {
+    if (symbol == nullptr) {
       throw std::string("recursive call outside of function");
     } else if (symbol->is_main()) {
       throw std::string("recursive call inside main program");
@@ -633,7 +645,7 @@ void til::type_checker::do_function_call_node(til::function_call_node *const nod
 void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
   // symbol of current function is stored in the previous context
   auto symbol =_symtab.find("@", 1);
-  if(symbol == nullptr) {
+  if (symbol == nullptr) {
     throw std::string("return statement outside of block");
   }  
 
@@ -665,7 +677,7 @@ void til::type_checker::do_return_node(til::return_node *const node, int lvl) {
 
 void til::type_checker::do_loop_node(til::loop_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
-
+  // if condition is not typed, then it will be of type int
   if (node->condition()->is_typed(cdk::TYPE_UNSPEC)) {
     node->condition()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (!node->condition()->is_typed(cdk::TYPE_INT)) {

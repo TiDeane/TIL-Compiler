@@ -49,7 +49,7 @@ void til::postfix_writer::acceptCovariantNode(std::shared_ptr<cdk::basic_type> c
 
   auto lineno = node->lineno();
 
-  // Wrap the functions
+  // Wraps the function
   wrapFunction(lineno, node_type, node, lvl);
 }
 
@@ -493,10 +493,10 @@ void til::postfix_writer::do_alloc_node(til::alloc_node * const node, int lvl) {
   
   auto ref = cdk::reference_type::cast(node->type())->referenced();
   node->argument()->accept(this, lvl);
-  _pf.INT(std::max(static_cast<size_t>(1), ref->size()));
-  _pf.MUL();
-  _pf.ALLOC();
-  _pf.SP();
+  _pf.INT(std::max(static_cast<size_t>(1), ref->size())); //type size
+  _pf.MUL();     // type size * argument
+  _pf.ALLOC();   // allocate space for the array
+  _pf.SP();      // pushes the array address
 }
 
 void til::postfix_writer::do_address_of_node(til::address_of_node * const node, int lvl) {
@@ -509,9 +509,9 @@ void til::postfix_writer::do_index_node(til::index_node * const node, int lvl) {
   
   node->pointer()->accept(this, lvl + 2);
   node->index()->accept(this, lvl + 2);
-  _pf.INT(node->type()->size());
-  _pf.MUL();
-  _pf.ADD();
+  _pf.INT(node->type()->size());   // type size
+  _pf.MUL();                       // type size * index
+  _pf.ADD();                       // pointer base + (type size * index)
 }
 
 void til::postfix_writer::do_nullptr_node(til::nullptr_node * const node, int lvl) {
@@ -596,7 +596,7 @@ void til::postfix_writer::do_declaration_node(til::declaration_node * const node
   
   _externalFunctionsToDeclare.erase(symbol->name());
 
-  if (node->initializer() == nullptr) {
+  if (node->initializer() == nullptr) { // uninitialized variable
     _pf.BSS();
     _pf.ALIGN();
 
